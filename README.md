@@ -44,13 +44,13 @@ Unlike mainstream approaches that convert speech to discrete tokens, VoxCPM uses
 ### 📦 Model Versions
 See [Release Notes](docs/release_note.md) for details
 - **VoxCPM1.5** (Latest): 
-  - Model Params: 750M
+  - Model Params: 800M
   - Sampling rate of AudioVAE: 44100
   - Token rate in LM Backbone: 6.25Hz (patch-size=4)
   - RTF in a single NVIDIA-RTX 4090 GPU: ~0.15
 
 - **VoxCPM-0.5B** (Original):
-  - Model Params: 600M
+  - Model Params: 640M
   - Sampling rate of AudioVAE: 16000
   - Token rate in LM Backbone: 12.5Hz (patch-size=2)
   - RTF in a single NVIDIA-RTX 4090 GPU: 0.17
