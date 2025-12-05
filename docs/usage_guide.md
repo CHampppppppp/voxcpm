@@ -23,8 +23,10 @@ This is the secret sauce that gives your audio its unique sound.
 
 ### 1. Cooking with a Prompt Speech (Following a Famous Recipe)
 - A prompt speech provides the desired acoustic characteristics for VoxCPM. The speaker's timbre, speaking style, and even the background sounds and ambiance will be replicated.
-- **For a Clean, Studio-Quality Voice:**
-  - ✅ Enable "Prompt Speech Enhancement". This acts like a noise filter, removing background hiss and rumble to give you a pure, clean voice clone.
+- **For a Clean, Denoising Voice:**
+  - ✅ Enable "Prompt Speech Enhancement". This acts like a noise filter, removing background hiss and rumble to give you a pure, clean voice clone. However, this will limit the audio sampling rate to 16kHz, restricting the cloning quality ceiling.
+- **For High-Quality Audio Cloning (Up to 44.1kHz):**
+  - ❌ Disable "Prompt Speech Enhancement" to preserve all original audio information, including background atmosphere, and support audio cloning up to 44.1kHz sampling rate.
 
 ### 2. Cooking au Naturel (Letting the Model Improvise)
 - If no reference is provided, VoxCPM becomes a creative chef! It will infer a fitting speaking style based on the text itself, thanks to the text-smartness of its foundation model, MiniCPM-4.
