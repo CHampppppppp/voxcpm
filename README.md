@@ -76,7 +76,7 @@ By default, when you first run the script, the model will be downloaded automati
     from huggingface_hub import snapshot_download
     snapshot_download("openbmb/VoxCPM-0.5B")
     ```
-- Download ZipEnhancer and SenseVoice-Small. We use ZipEnhancer to enhance speech prompts and SenseVoice-Small for speech prompt ASR in the web demo.
+- Download ZipEnhancer and SenseVoice-Small. We use ZipEnhancer to enhance speech prompts and SenseVoice-Small for speech prompt ASR in the web demo. 
     ```
     from modelscope import snapshot_download
     snapshot_download('iic/speech_zipenhancer_ans_multiloss_16k_base')
@@ -98,8 +98,8 @@ wav = model.generate(
     prompt_text=None,          # optional: reference text
     cfg_value=2.0,             # LM guidance on LocDiT, higher for better adherence to the prompt, but maybe worse
     inference_timesteps=10,   # LocDiT inference timesteps, higher for better result, lower for fast speed
-    normalize=True,           # enable external TN tool, but will disable native raw text support
-    denoise=True,             # enable external Denoise tool, but it may cause some distortion and restrict the sampling rate to 16kHz
+    normalize=False,           # enable external TN tool, but will disable native raw text support
+    denoise=False,             # enable external Denoise tool, but it may cause some distortion and restrict the sampling rate to 16kHz
     retry_badcase=True,        # enable retrying mode for some bad cases (unstoppable)
     retry_badcase_max_times=3,  # maximum retrying times
     retry_badcase_ratio_threshold=6.0, # maximum length restriction for bad case detection (simple but effective), it could be adjusted for slow pace speech
@@ -134,14 +134,14 @@ voxcpm --text "VoxCPM is an innovative end-to-end TTS model from ModelBest, desi
   --prompt-audio path/to/voice.wav \
   --prompt-text "reference transcript" \
   --output out.wav \
-  --denoise
+  # --denoise
 
 # (Optinal) Voice cloning (reference audio + transcript file)
 voxcpm --text "VoxCPM is an innovative end-to-end TTS model from ModelBest, designed to generate highly expressive speech." \
   --prompt-audio path/to/voice.wav \
   --prompt-file "/path/to/text-file" \
   --output out.wav \
-  --denoise
+  # --denoise
 
 # 3) Batch processing (one text per line)
 voxcpm --input examples/input.txt --output-dir outs
@@ -149,7 +149,7 @@ voxcpm --input examples/input.txt --output-dir outs
 voxcpm --input examples/input.txt --output-dir outs \
   --prompt-audio path/to/voice.wav \
   --prompt-text "reference transcript" \
-  --denoise
+  # --denoise
 
 # 4) Inference parameters (quality/speed)
 voxcpm --text "..." --output out.wav \

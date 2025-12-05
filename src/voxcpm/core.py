@@ -40,7 +40,7 @@ class VoxCPM:
 
     @classmethod
     def from_pretrained(cls,
-            hf_model_id: str = "openbmb/VoxCPM-0.5B",
+            hf_model_id: str = "openbmb/VoxCPM1.5",
             load_denoiser: bool = True,
             zipenhancer_model_id: str = "iic/speech_zipenhancer_ans_multiloss_16k_base",
             cache_dir: str = None,
@@ -107,8 +107,8 @@ class VoxCPM:
             inference_timesteps : int = 10,
             min_len : int = 2,
             max_len : int = 4096,
-            normalize : bool = True,
-            denoise : bool = True,
+            normalize : bool = False,
+            denoise : bool = False,
             retry_badcase : bool = True,
             retry_badcase_max_times : int = 3,
             retry_badcase_ratio_threshold : float = 6.0,
