@@ -180,14 +180,14 @@ def create_demo_interface(demo: VoxCPMDemo):
             ### Text Normalization｜文本正则化
             - **Enable** to process general text with an external WeTextProcessing component.  
               **启用**：使用 WeTextProcessing 组件，可处理常见文本。
-            - **Disable** to use VoxCPM's native text understanding ability. For example, it supports phonemes input ({HH AH0 L OW1}), try it!  
-              **禁用**：将使用 VoxCPM 内置的文本理解能力。如，支持音素输入（如 {da4}{jia1}好）和公式符号合成，尝试一下！
+            - **Disable** to use VoxCPM's native text understanding ability. For example, it supports phonemes input (For Chinese, phonemes are converted using pinyin, {ni3}{hao3}; For English, phonemes are converted using CMUDict, {HH AH0 L OW1}), try it!  
+              **禁用**：将使用 VoxCPM 内置的文本理解能力。如，支持音素输入（如中文转拼音：{ni3}{hao3}；英文转CMUDict：{HH AH0 L OW1}）和公式符号合成，尝试一下！
 
             ### CFG Value｜CFG 值
-            - **Lower CFG** if the voice prompt sounds strained or expressive.  
-              **调低**：如果提示语音听起来不自然或过于夸张。
-            - **Higher CFG** for better adherence to the prompt speech style or input text.  
-              **调高**：为更好地贴合提示音频的风格或输入文本。
+            - **Lower CFG** if the voice prompt sounds strained or expressive, or instability occurs with long text input.  
+              **调低**：如果提示语音听起来不自然或过于夸张，或者长文本输入出现稳定性问题。
+            - **Higher CFG** for better adherence to the prompt speech style or input text, or instability occurs with too short text input.
+              **调高**：为更好地贴合提示音频的风格或输入文本， 或者极短文本输入出现稳定性问题。
 
             ### Inference Timesteps｜推理时间步
             - **Lower** for faster synthesis speed.  
