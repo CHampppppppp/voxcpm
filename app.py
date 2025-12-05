@@ -172,14 +172,14 @@ def create_demo_interface(demo: VoxCPMDemo):
         with gr.Accordion("💡 Pro Tips ｜使用建议", open=False, elem_id="acc_tips"):
             gr.Markdown("""
             ### Prompt Speech Enhancement｜参考语音降噪
-            - **Enable** to remove background noise for a clean, studio-like voice, with an external ZipEnhancer component.  
-              **启用**：通过 ZipEnhancer 组件消除背景噪音，获得更好的音质。
-            - **Disable** to preserve the original audio's background atmosphere.  
-              **禁用**：保留原始音频的背景环境声，如果想复刻相应声学环境。
+            - **Enable** to remove background noise for a clean voice, with an external ZipEnhancer component. However, this will limit the audio sampling rate to 16kHz, restricting the cloning quality ceiling.  
+              **启用**：通过 ZipEnhancer 组件消除背景噪音，但会将音频采样率限制在16kHz，限制克隆上限。
+            - **Disable** to preserve the original audio's all information, including background atmosphere, and support audio cloning up to 44.1kHz sampling rate.  
+              **禁用**：保留原始音频的全部信息，包括背景环境声，最高支持44.1kHz的音频复刻。
 
             ### Text Normalization｜文本正则化
             - **Enable** to process general text with an external WeTextProcessing component.  
-              **启用**：使用 WeTextProcessing 组件，可处理常见文本。
+              **启用**：使用 WeTextProcessing 组件，可支持常见文本的正则化处理。
             - **Disable** to use VoxCPM's native text understanding ability. For example, it supports phonemes input (For Chinese, phonemes are converted using pinyin, {ni3}{hao3}; For English, phonemes are converted using CMUDict, {HH AH0 L OW1}), try it!  
               **禁用**：将使用 VoxCPM 内置的文本理解能力。如，支持音素输入（如中文转拼音：{ni3}{hao3}；英文转CMUDict：{HH AH0 L OW1}）和公式符号合成，尝试一下！
 
