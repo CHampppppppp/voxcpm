@@ -267,7 +267,7 @@ def run_demo(server_name: str = "localhost", server_port: int = 7860, show_error
     demo = VoxCPMDemo()
     interface = create_demo_interface(demo)
     # Recommended to enable queue on Spaces for better throughput
-    interface.queue(max_size=10).launch(server_name=server_name, server_port=server_port, show_error=show_error)
+    interface.queue(max_size=10, default_concurrency_limit=1).launch(server_name=server_name, server_port=server_port, show_error=show_error)
 
 
 if __name__ == "__main__":
