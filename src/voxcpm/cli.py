@@ -45,7 +45,7 @@ def load_model(args) -> VoxCPM:
 
     Prefer --model-path if provided; otherwise use from_pretrained (Hub).
     """
-    print("Loading VoxCPM model...")
+    print("Loading VoxCPM model...", file=sys.stderr)
 
     # 兼容旧参数：ZIPENHANCER_MODEL_PATH 环境变量作为默认
     zipenhancer_path = getattr(args, "zipenhancer_path", None) or os.environ.get(
@@ -66,7 +66,7 @@ def load_model(args) -> VoxCPM:
             dropout=getattr(args, "lora_dropout", 0.0),
         )
         print(f"LoRA config: r={lora_config.r}, alpha={lora_config.alpha}, "
-              f"lm={lora_config.enable_lm}, dit={lora_config.enable_dit}, proj={lora_config.enable_proj}")
+              f"lm={lora_config.enable_lm}, dit={lora_config.enable_dit}, proj={lora_config.enable_proj}", file=sys.stderr)
 
     # Load from local path if provided
     if getattr(args, "model_path", None):
@@ -78,10 +78,10 @@ def load_model(args) -> VoxCPM:
                 lora_config=lora_config,
                 lora_weights_path=lora_weights_path,
             )
-            print("Model loaded (local).")
+            print("Model loaded (local).", file=sys.stderr)
             return model
         except Exception as e:
-            print(f"Failed to load model (local): {e}")
+            print(f"Failed to load model (local): {e}", file=sys.stderr)
             sys.exit(1)
 
     # Otherwise, try from_pretrained (Hub); exit on failure
@@ -95,10 +95,10 @@ def load_model(args) -> VoxCPM:
             lora_config=lora_config,
             lora_weights_path=lora_weights_path,
         )
-        print("Model loaded (from_pretrained).")
+        print("Model loaded (from_pretrained).", file=sys.stderr)
         return model
     except Exception as e:
-        print(f"Failed to load model (from_pretrained): {e}")
+        print(f"Failed to load model (from_pretrained): {e}", file=sys.stderr)
         sys.exit(1)
 
 
@@ -106,15 +106,15 @@ def cmd_clone(args):
     """Voice cloning command."""
     # Validate inputs
     if not args.text:
-        print("Error: Please provide text to synthesize (--text)")
+        print("Error: Please provide text to synthesize (--text)", file=sys.stderr)
         sys.exit(1)
     
     if not args.prompt_audio:
-        print("Error: Voice cloning requires a reference audio (--prompt-audio)")
+        print("Error: Voice cloning requires a reference audio (--prompt-audio)", file=sys.stderr)
         sys.exit(1)
         
     if not args.prompt_text:
-        print("Error: Voice cloning requires a reference text (--prompt-text)")
+        print("Error: Voice cloning requires a reference text (--prompt-text)", file=sys.stderr)
         sys.exit(1)
     
     # Validate files
@@ -125,9 +125,9 @@ def cmd_clone(args):
     model = load_model(args)
     
     # Generate audio
-    print(f"Synthesizing text: {args.text}")
-    print(f"Reference audio: {prompt_audio_path}")
-    print(f"Reference text: {args.prompt_text}")
+    print(f"Synthesizing text: {args.text}", file=sys.stderr)
+    print(f"Reference audio: {prompt_audio_path}", file=sys.stderr)
+    print(f"Reference text: {args.prompt_text}", file=sys.stderr)
     
     audio_array = model.generate(
         text=args.text,
@@ -141,25 +141,25 @@ def cmd_clone(args):
     
     # Save audio
     sf.write(str(output_path), audio_array, model.tts_model.sample_rate)
-    print(f"Saved audio to: {output_path}")
+    print(f"Saved audio to: {output_path}", file=sys.stderr)
     
     # Stats
     duration = len(audio_array) / model.tts_model.sample_rate
-    print(f"Duration: {duration:.2f}s")
+    print(f"Duration: {duration:.2f}s", file=sys.stderr)
 
 
 def cmd_synthesize(args):
     """Direct TTS synthesis command."""
     # Validate inputs
     if not args.text:
-        print("Error: Please provide text to synthesize (--text)")
+        print("Error: Please provide text to synthesize (--text)", file=sys.stderr)
         sys.exit(1)
     # Validate output path
     output_path = validate_output_path(args.output)
     # Load model
     model = load_model(args)
     # Generate audio
-    print(f"Synthesizing text: {args.text}")
+    print(f"Synthesizing text: {args.text}", file=sys.stderr)
     
     audio_array = model.generate(
         text=args.text,
@@ -173,11 +173,11 @@ def cmd_synthesize(args):
     
     # Save audio
     sf.write(str(output_path), audio_array, model.tts_model.sample_rate)
-    print(f"Saved audio to: {output_path}")
+    print(f"Saved audio to: {output_path}", file=sys.stderr)
     
     # Stats
     duration = len(audio_array) / model.tts_model.sample_rate
-    print(f"Duration: {duration:.2f}s")
+    print(f"Duration: {duration:.2f}s", file=sys.stderr)
 
 
 def cmd_batch(args):
@@ -191,12 +191,12 @@ def cmd_batch(args):
         with open(input_file, 'r', encoding='utf-8') as f:
             texts = [line.strip() for line in f if line.strip()]
     except Exception as e:
-        print(f"Failed to read input file: {e}")
+        print(f"Failed to read input file: {e}", file=sys.stderr)
         sys.exit(1)
     if not texts:
-        print("Error: Input file is empty or contains no valid lines")
+        print("Error: Input file is empty or contains no valid lines", file=sys.stderr)
         sys.exit(1)
-    print(f"Found {len(texts)} lines to process")
+    print(f"Found {len(texts)} lines to process", file=sys.stderr)
     
     model = load_model(args)
     prompt_audio_path = None
@@ -205,7 +205,7 @@ def cmd_batch(args):
     
     success_count = 0
     for i, text in enumerate(texts, 1):
-        print(f"\nProcessing {i}/{len(texts)}: {text[:50]}...")
+        print(f"\nProcessing {i}/{len(texts)}: {text[:50]}...", file=sys.stderr)
         
         try:
             audio_array = model.generate(
@@ -221,14 +221,14 @@ def cmd_batch(args):
             sf.write(str(output_file), audio_array, model.tts_model.sample_rate)
             
             duration = len(audio_array) / model.tts_model.sample_rate
-            print(f"  Saved: {output_file} ({duration:.2f}s)")
+            print(f"  Saved: {output_file} ({duration:.2f}s)", file=sys.stderr)
             success_count += 1
             
         except Exception as e:
-            print(f"  Failed: {e}")
+            print(f"  Failed: {e}", file=sys.stderr)
             continue
     
-    print(f"\nBatch finished: {success_count}/{len(texts)} succeeded")
+    print(f"\nBatch finished: {success_count}/{len(texts)} succeeded", file=sys.stderr)
 
 def _build_unified_parser():
     """Build unified argument parser (no subcommands, route by args)."""
@@ -296,14 +296,14 @@ def main():
     # Routing: prefer batch → single (clone/direct)
     if args.input:
         if not args.output_dir:
-            print("Error: Batch mode requires --output-dir")
+            print("Error: Batch mode requires --output-dir", file=sys.stderr)
             parser.print_help()
             sys.exit(1)
         return cmd_batch(args)
 
     # Single-sample mode
     if not args.text or not args.output:
-        print("Error: Single-sample mode requires --text and --output")
+        print("Error: Single-sample mode requires --text and --output", file=sys.stderr)
         parser.print_help()
         sys.exit(1)
 
@@ -316,7 +316,7 @@ def main():
                 args.prompt_text = f.read()
 
         if not args.prompt_audio or not args.prompt_text:
-            print("Error: Voice cloning requires both --prompt-audio and --prompt-text")
+            print("Error: Voice cloning requires both --prompt-audio and --prompt-text", file=sys.stderr)
             sys.exit(1)
         return cmd_clone(args)
 

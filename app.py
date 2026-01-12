@@ -1,4 +1,5 @@
 import os
+import sys
 import numpy as np
 import torch
 import gradio as gr  
@@ -16,7 +17,7 @@ import voxcpm
 class VoxCPMDemo:
     def __init__(self) -> None:
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        print(f"🚀 Running on device: {self.device}")
+        print(f"🚀 Running on device: {self.device}", file=sys.stderr)
 
         # ASR model for prompt text recognition
         self.asr_model_id = "iic/SenseVoiceSmall"
@@ -49,10 +50,10 @@ class VoxCPMDemo:
                 try:
                     from huggingface_hub import snapshot_download  # type: ignore
                     os.makedirs(target_dir, exist_ok=True)
-                    print(f"Downloading model from HF repo '{repo_id}' to '{target_dir}' ...")
+                    print(f"Downloading model from HF repo '{repo_id}' to '{target_dir}' ...", file=sys.stderr)
                     snapshot_download(repo_id=repo_id, local_dir=target_dir, local_dir_use_symlinks=False)
                 except Exception as e:
-                    print(f"Warning: HF download failed: {e}. Falling back to 'data'.")
+                    print(f"Warning: HF download failed: {e}. Falling back to 'data'.", file=sys.stderr)
                     return "models"
             return target_dir
         return "models"
@@ -60,11 +61,11 @@ class VoxCPMDemo:
     def get_or_load_voxcpm(self) -> voxcpm.VoxCPM:
         if self.voxcpm_model is not None:
             return self.voxcpm_model
-        print("Model not loaded, initializing...")
+        print("Model not loaded, initializing...", file=sys.stderr)
         model_dir = self._resolve_model_dir()
-        print(f"Using model dir: {model_dir}")
+        print(f"Using model dir: {model_dir}", file=sys.stderr)
         self.voxcpm_model = voxcpm.VoxCPM(voxcpm_model_path=model_dir)
-        print("Model loaded successfully.")
+        print("Model loaded successfully.", file=sys.stderr)
         return self.voxcpm_model
 
     # ---------- Functional endpoints ----------
@@ -98,7 +99,7 @@ class VoxCPMDemo:
         prompt_wav_path = prompt_wav_path_input if prompt_wav_path_input else None
         prompt_text = prompt_text_input if prompt_text_input else None
 
-        print(f"Generating audio for text: '{text[:60]}...'")
+        print(f"Generating audio for text: '{text[:60]}...'", file=sys.stderr)
         wav = current_model.generate(
             text=text,
             prompt_text=prompt_text,

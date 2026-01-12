@@ -104,7 +104,7 @@ def get_timestamp_str():
 def get_or_load_asr_model():
     global asr_model
     if asr_model is None:
-        print("Loading ASR model (SenseVoiceSmall)...")
+        print("Loading ASR model (SenseVoiceSmall)...", file=sys.stderr)
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
         asr_model = AutoModel(
             model="iic/SenseVoiceSmall",
@@ -123,7 +123,7 @@ def recognize_audio(audio_path):
         text = res[0]["text"].split('|>')[-1]
         return text
     except Exception as e:
-        print(f"ASR Error: {e}")
+        print(f"ASR Error: {e}", file=sys.stderr)
         return ""
 
 def scan_lora_checkpoints(root_dir="lora", with_info=False):
@@ -181,7 +181,7 @@ def load_lora_config_from_checkpoint(lora_path):
             if lora_cfg_dict:
                 return LoRAConfig(**lora_cfg_dict), lora_info.get("base_model")
         except Exception as e:
-            print(f"Warning: Failed to load lora_config.json: {e}")
+            print(f"Warning: Failed to load lora_config.json: {e}", file=sys.stderr)
     return None, None
 
 def get_default_lora_config():
@@ -197,7 +197,7 @@ def get_default_lora_config():
 
 def load_model(pretrained_path, lora_path=None):
     global current_model
-    print(f"Loading model from {pretrained_path}...")
+    print(f"Loading model from {pretrained_path}...", file=sys.stderr)
     
     lora_config = None
     lora_weights_path = None
@@ -209,11 +209,11 @@ def load_model(pretrained_path, lora_path=None):
             # Try to load LoRA config from lora_config.json
             lora_config, _ = load_lora_config_from_checkpoint(full_lora_path)
             if lora_config:
-                print(f"Loaded LoRA config from {full_lora_path}/lora_config.json")
+                print(f"Loaded LoRA config from {full_lora_path}/lora_config.json", file=sys.stderr)
             else:
                 # Fallback to default config for old checkpoints
                 lora_config = get_default_lora_config()
-                print("Using default LoRA config (lora_config.json not found)")
+                print("Using default LoRA config (lora_config.json not found)", file=sys.stderr)
     
     # Always init with a default LoRA config to allow hot-swapping later
     if lora_config is None:
@@ -251,36 +251,36 @@ def run_inference(text, prompt_wav, prompt_text, lora_selection, cfg_scale, step
                         # 优先使用保存的 base_model 路径
                         if os.path.exists(saved_base_model):
                             base_model_path = saved_base_model
-                            print(f"Using base model from LoRA config: {base_model_path}")
+                            print(f"Using base model from LoRA config: {base_model_path}", file=sys.stderr)
                         else:
-                            print(f"Warning: Saved base_model path not found: {saved_base_model}")
-                            print(f"Falling back to default: {base_model_path}")
+                            print(f"Warning: Saved base_model path not found: {saved_base_model}", file=sys.stderr)
+                            print(f"Falling back to default: {base_model_path}", file=sys.stderr)
                 except Exception as e:
-                    print(f"Warning: Failed to read base_model from LoRA config: {e}")
+                    print(f"Warning: Failed to read base_model from LoRA config: {e}", file=sys.stderr)
         
         # 加载模型
         try:
-            print(f"Loading base model: {base_model_path}")
+            print(f"Loading base model: {base_model_path}", file=sys.stderr)
             status_msg = load_model(base_model_path)
             if lora_selection and lora_selection != "None":
-                print(f"Model loaded for LoRA: {lora_selection}")
+                print(f"Model loaded for LoRA: {lora_selection}", file=sys.stderr)
         except Exception as e:
             error_msg = f"Failed to load model from {base_model_path}: {str(e)}"
-            print(error_msg)
+            print(error_msg, file=sys.stderr)
             return None, error_msg
 
     # Handle LoRA hot-swapping
     if lora_selection and lora_selection != "None":
         full_lora_path = os.path.join("lora", lora_selection)
-        print(f"Hot-loading LoRA: {full_lora_path}")
+        print(f"Hot-loading LoRA: {full_lora_path}", file=sys.stderr)
         try:
             current_model.load_lora(full_lora_path)
             current_model.set_lora_enabled(True)
         except Exception as e:
-            print(f"Error loading LoRA: {e}")
+            print(f"Error loading LoRA: {e}", file=sys.stderr)
             return None, f"Error loading LoRA: {e}"
     else:
-        print("Disabling LoRA")
+        print("Disabling LoRA", file=sys.stderr)
         current_model.set_lora_enabled(False)
 
     if seed != -1:
@@ -297,11 +297,11 @@ def run_inference(text, prompt_wav, prompt_text, lora_selection, cfg_scale, step
         
         # 如果没有提供参考文本，尝试自动识别
         if not prompt_text or not prompt_text.strip():
-            print("参考音频已提供但缺少文本，自动识别中...")
+            print("参考音频已提供但缺少文本，自动识别中...", file=sys.stderr)
             try:
                 final_prompt_text = recognize_audio(prompt_wav)
                 if final_prompt_text:
-                    print(f"自动识别文本: {final_prompt_text}")
+                    print(f"自动识别文本: {final_prompt_text}", file=sys.stderr)
                 else:
                     return None, "错误：无法识别参考音频内容，请手动填写参考文本"
             except Exception as e:
@@ -1114,12 +1114,12 @@ with gr.Blocks(
                 choices = ["None"] + [ckpt[0] for ckpt in checkpoints_with_info]
                 
                 # 输出调试信息
-                print(f"刷新 LoRA 列表: 找到 {len(checkpoints_with_info)} 个检查点")
+                print(f"刷新 LoRA 列表: 找到 {len(checkpoints_with_info)} 个检查点", file=sys.stderr)
                 for ckpt_path, base_model in checkpoints_with_info:
                     if base_model:
-                        print(f"  - {ckpt_path} (Base Model: {base_model})")
+                        print(f"  - {ckpt_path} (Base Model: {base_model})", file=sys.stderr)
                     else:
-                        print(f"  - {ckpt_path}")
+                        print(f"  - {ckpt_path}", file=sys.stderr)
                 
                 return gr.update(choices=choices, value="None")
 
