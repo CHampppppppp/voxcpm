@@ -74,8 +74,8 @@ def parse_args():
     parser.add_argument(
         "--cfg_value",
         type=float,
-        default=2.0,
-        help="CFG scale (default: 2.0)",
+        default=4.0,
+        help="CFG scale (default: 4.0)",
     )
     parser.add_argument(
         "--inference_timesteps",

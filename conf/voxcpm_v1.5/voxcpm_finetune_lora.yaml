@@ -1,5 +1,5 @@
-pretrained_path: /path/to/VoxCPM1.5/
-train_manifest: /path/to/train.jsonl
+pretrained_path: /home/zju/VoxCPM/models/openbmb__VoxCPM1.5/model.safetensors
+train_manifest: /home/zju/VoxCPM/examples/train_hailan.jsonl
 val_manifest: null
 sample_rate: 44100
 batch_size: 16
@@ -14,8 +14,8 @@ weight_decay: 0.01
 warmup_steps: 100
 max_steps: 2000
 max_batch_tokens: 8192  # Example: single batch can have at most 16k tokens, with batch_size=4, each sample can have at most 4096 tokens
-save_path: /path/to/checkpoints/finetune_lora
-tensorboard: /path/to/logs/finetune_lora
+save_path: /home/zju/VoxCPM/checkpoints/finetune_lora
+tensorboard: /home/zju/VoxCPM/logs/finetune_lora
 lambdas:
   loss/diff: 1.0
   loss/stop: 1.0

@@ -274,7 +274,7 @@ class AudioVAEConfig(BaseModel):
     decoder_dim: int = 1536
     decoder_rates: List[int] = [8, 8, 5, 2]
     depthwise: bool = True
-    sample_rate: int = 16000
+    sample_rate: int = 44100
     use_noise_block: bool = False
 
 

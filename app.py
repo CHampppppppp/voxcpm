@@ -81,7 +81,7 @@ class VoxCPMDemo:
         text_input: str,
         prompt_wav_path_input: Optional[str] = None,
         prompt_text_input: Optional[str] = None,
-        cfg_value_input: float = 2.0,
+        cfg_value_input: float = 4.0,
         inference_timesteps_input: int = 10,
         do_normalize: bool = True,
         denoise: bool = True,
@@ -204,7 +204,7 @@ def create_demo_interface(demo: VoxCPMDemo):
                     sources=["upload", 'microphone'],
                     type="filepath",
                     label="Prompt Speech (Optional, or let VoxCPM improvise)",
-                    value="./examples/example.wav",
+                    value="./examples/hailan07_short.wav",
                 )
                 DoDenoisePromptAudio = gr.Checkbox(
                     value=False,
@@ -214,7 +214,7 @@ def create_demo_interface(demo: VoxCPMDemo):
                 )
                 with gr.Row():
                     prompt_text = gr.Textbox(
-                        value="Just by listening a few minutes a day, you'll be able to eliminate negative thoughts by conditioning your mind to be more positive.",
+                        value="感谢您的耐心，我这就去核实一下。在江苏电力现货市场里，费用分摊主要涉及几类。",
                         label="Prompt Text",
                         placeholder="Please enter the prompt text. Automatic recognition is supported, and you can correct the results yourself..."
                     )
@@ -223,7 +223,7 @@ def create_demo_interface(demo: VoxCPMDemo):
             with gr.Column():
                 cfg_value = gr.Slider(
                     minimum=1.0,
-                    maximum=3.0,
+                    maximum=4.0,
                     value=2.0,
                     step=0.1,
                     label="CFG Value (Guidance Scale)",
@@ -239,7 +239,7 @@ def create_demo_interface(demo: VoxCPMDemo):
                 )
                 with gr.Row():
                     text = gr.Textbox(
-                        value="VoxCPM is an innovative end-to-end TTS model from ModelBest, designed to generate highly realistic speech.",
+                        value='感谢您的耐心，我这就去核实一下。偏差调整费用这个事儿，说白了就是您实际用的电和合同签的量有点出入。咱们按市场规则来说，如果您这个月实际用电量比合同签的多出3%以内，这部分差额是按合同均价来算的；但要是超过3%，那超出的部分就得按当期煤电价格上限来结算，而且还会加收一笔"偏差调整费"。',
                         label="Target Text",
                     )
                 with gr.Row():
@@ -264,11 +264,11 @@ def create_demo_interface(demo: VoxCPMDemo):
     return interface
 
 
-def run_demo(server_name: str = "localhost", server_port: int = 7860, show_error: bool = True):
+def run_demo(server_name: str = "localhost", server_port: int = 7861, show_error: bool = True):
     demo = VoxCPMDemo()
     interface = create_demo_interface(demo)
     # Recommended to enable queue on Spaces for better throughput
-    interface.queue(max_size=10, default_concurrency_limit=1).launch(server_name=server_name, server_port=server_port, show_error=show_error)
+    interface.queue(max_size=10, default_concurrency_limit=1).launch(server_name=server_name, server_port=server_port, show_error=show_error,share=False)
 
 
 if __name__ == "__main__":

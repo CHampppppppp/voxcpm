@@ -352,6 +352,7 @@ class VoxCPMModel(nn.Module):
         retry_badcase_max_times: int = 3,
         retry_badcase_ratio_threshold: float = 6.0, # setting acceptable ratio of audio length to text length (for badcase detection)
         streaming: bool = False,
+        show_progress: bool = True,
     ) -> Generator[torch.Tensor, None, None]:
         if retry_badcase and streaming:
             warnings.warn("Retry on bad cases is not supported in streaming mode, setting retry_badcase=False.")
@@ -448,6 +449,7 @@ class VoxCPMModel(nn.Module):
                 inference_timesteps=inference_timesteps,
                 cfg_value=cfg_value,
                 streaming=streaming,
+                show_progress=show_progress,
             )
             if streaming:
                 patch_len = self.patch_size * self.chunk_size
@@ -518,6 +520,7 @@ class VoxCPMModel(nn.Module):
         # build prompt cache - only save raw text and audio features
         prompt_cache = {
             "prompt_text": prompt_text,
+            "prompt_wav_path": prompt_wav_path,
             "audio_feat": audio_feat,
         }
         
@@ -585,6 +588,7 @@ class VoxCPMModel(nn.Module):
         retry_badcase_ratio_threshold: float = 6.0,
         streaming: bool = False,
         streaming_prefix_len: int = 3,
+        show_progress: bool = True,
     ) -> Generator[Tuple[torch.Tensor, torch.Tensor, Union[torch.Tensor, List[torch.Tensor]]], None, None]:
         """
         Generate audio using pre-built prompt cache.
@@ -601,6 +605,7 @@ class VoxCPMModel(nn.Module):
             retry_badcase_ratio_threshold: Threshold for audio-to-text ratio
             streaming: Whether to return a generator of audio chunks
             streaming_prefix_len: Number of prefix audio patches to use for streaming mode
+            show_progress: Whether to show progress bar
             
         Returns:
             Generator of Tuple containing:
@@ -668,6 +673,7 @@ class VoxCPMModel(nn.Module):
                 cfg_value=cfg_value,
                 streaming=streaming,
                 streaming_prefix_len=streaming_prefix_len,
+                show_progress=show_progress,
             )
             if streaming:
                 patch_len = self.patch_size * self.chunk_size
@@ -723,6 +729,7 @@ class VoxCPMModel(nn.Module):
         cfg_value: float = 2.0,
         streaming: bool = False,
         streaming_prefix_len: int = 3,
+        show_progress: bool = True,
     ) -> Generator[Tuple[torch.Tensor, Union[torch.Tensor, List[torch.Tensor]]], None, None]:
         """Core inference method for audio generation.
         
@@ -739,6 +746,7 @@ class VoxCPMModel(nn.Module):
             inference_timesteps: Number of diffusion steps
             cfg_value: Classifier-free guidance value
             streaming: Whether to yield each step latent feature or just the final result
+            show_progress: Whether to show progress bar
             
         Returns:
             Generator of Tuple containing:
@@ -791,7 +799,7 @@ class VoxCPMModel(nn.Module):
         residual_hidden = residual_enc_outputs[:, -1, :]
 
 
-        for i in tqdm(range(max_len)):
+        for i in tqdm(range(max_len), disable=not show_progress):
             dit_hidden_1 = self.lm_to_dit_proj(lm_hidden)  # [b, h_dit]
             dit_hidden_2 = self.res_to_dit_proj(residual_hidden)  # [b, h_dit]
             dit_hidden = dit_hidden_1 + dit_hidden_2  # [b, h_dit]
