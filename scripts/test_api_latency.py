@@ -55,7 +55,7 @@ async def test_health(uri):
     print(f"\n[Health] {uri}")
     try:
         start_time = time.perf_counter()
-        async with websockets.connect(uri, ping_interval=None, ping_timeout=None) as websocket:
+        async with websockets.connect(uri, ping_interval=None, ping_timeout=None, max_size=None) as websocket:
             resp = await websocket.recv()
         end_time = time.perf_counter()
         data = json.loads(resp)
@@ -87,7 +87,7 @@ async def run_asr_once(uri, audio_path):
     with open(audio_path, "rb") as f:
         audio_bytes = f.read()
     start_time = time.perf_counter()
-    async with websockets.connect(uri, ping_interval=None, ping_timeout=None) as websocket:
+    async with websockets.connect(uri, ping_interval=None, ping_timeout=None, max_size=None) as websocket:
         await websocket.send(audio_bytes)
         resp = await websocket.recv()
     end_time = time.perf_counter()
@@ -139,7 +139,7 @@ async def run_vad_once(uri, audio_path):
     with open(audio_path, "rb") as f:
         audio_bytes = f.read()
     start_time = time.perf_counter()
-    async with websockets.connect(uri, ping_interval=None, ping_timeout=None) as websocket:
+    async with websockets.connect(uri, ping_interval=None, ping_timeout=None, max_size=None) as websocket:
         await websocket.send(audio_bytes)
         resp = await websocket.recv()
     end_time = time.perf_counter()
@@ -212,7 +212,7 @@ async def run_generate_once(
         req_data["prompt_text"] = prompt_text
 
     start_time = time.perf_counter()
-    async with websockets.connect(uri, ping_interval=None, ping_timeout=None) as websocket:
+    async with websockets.connect(uri, ping_interval=None, ping_timeout=None, max_size=None) as websocket:
         await websocket.send(json.dumps(req_data, ensure_ascii=False))
         send_time = time.perf_counter()
         first_chunk_time = None
