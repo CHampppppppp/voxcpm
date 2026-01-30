@@ -10,6 +10,7 @@ WebSocket Endpoints:
     ws://host:port/ws/generate - 语音合成
     ws://host:port/ws/health - 健康检查
     ws://host:port/ws/models - 获取模型信息
+    ws://host:port/ws/asr - 语音识别
 """
 
 import os
@@ -18,6 +19,7 @@ import torch
 import numpy as np
 import voxcpm
 import torchaudio
+from funasr import AutoModel
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
@@ -33,11 +35,30 @@ SERVER_PORT = int(os.environ.get("SERVER_PORT", 8080))
 # 默认参考声音配置
 DEFAULT_PROMPT_WAV_PATH = os.environ.get("DEFAULT_PROMPT_WAV_PATH", "")
 DEFAULT_PROMPT_TEXT = os.environ.get("DEFAULT_PROMPT_TEXT", "")
+ASR_MODEL_ID = os.environ.get("ASR_MODEL_ID", "iic/SenseVoiceSmall")
 
 
 # 全局模型实例（懒加载）
 _tts_model: Optional[voxcpm.VoxCPM] = None
 _model_lock = threading.Lock()
+_asr_model: Optional[AutoModel] = None
+_asr_lock = threading.Lock()
+
+
+def get_asr_model() -> AutoModel:
+    global _asr_model
+    if _asr_model is None:
+        with _asr_lock:
+            if _asr_model is None:
+                print(f"Loading ASR model: {ASR_MODEL_ID}...", file=sys.stderr)
+                _asr_model = AutoModel(
+                    model=ASR_MODEL_ID,
+                    disable_update=True,
+                    log_level="ERROR",
+                    device="cuda" if torch.cuda.is_available() else "cpu",
+                )
+                print("ASR model loaded successfully!", file=sys.stderr)
+    return _asr_model
 
 
 def get_model() -> voxcpm.VoxCPM:
@@ -87,7 +108,8 @@ async def root():
             "http_models": "/models",
             "ws_generate": "/ws/generate",
             "ws_health": "/ws/health",
-            "ws_models": "/ws/models"
+            "ws_models": "/ws/models",
+            "ws_asr": "/ws/asr"
         }
     }
 
@@ -250,7 +272,8 @@ async def websocket_root(websocket: WebSocket):
         "endpoints": {
             "generate": "/ws/generate",
             "health": "/ws/health",
-            "models": "/ws/models"
+            "models": "/ws/models",
+            "asr": "/ws/asr"
         }
     })
     await websocket.close()
@@ -294,6 +317,33 @@ async def websocket_models(websocket: WebSocket):
         })
     except Exception as e:
         await ws_manager.send_error(websocket, f"Failed to get model info: {str(e)}")
+    finally:
+        ws_manager.disconnect(websocket)
+
+
+@app.websocket("/ws/asr")
+async def websocket_asr(websocket: WebSocket):
+    await ws_manager.connect(websocket)
+    try:
+        while True:
+            try:
+                audio_bytes = await websocket.receive_bytes()
+                temp_path = tempfile.mktemp(suffix=".wav")
+                with open(temp_path, "wb") as f:
+                    f.write(audio_bytes)
+
+                try:
+                    asr_model = get_asr_model()
+                    res = asr_model.generate(input=temp_path, language="auto", use_itn=True)
+                    text = res[0]["text"].split("|>")[-1]
+                    await ws_manager.send_json(websocket, {"status": "success", "text": text})
+                finally:
+                    if os.path.exists(temp_path):
+                        os.remove(temp_path)
+            except WebSocketDisconnect:
+                break
+            except Exception as e:
+                await ws_manager.send_error(websocket, f"ASR processing failed: {str(e)}")
     finally:
         ws_manager.disconnect(websocket)
 
@@ -443,6 +493,7 @@ if __name__ == "__main__":
     print(f"  - ws://{SERVER_HOST}:{SERVER_PORT}/ws/generate")
     print(f"  - ws://{SERVER_HOST}:{SERVER_PORT}/ws/health")
     print(f"  - ws://{SERVER_HOST}:{SERVER_PORT}/ws/models")
+    print(f"  - ws://{SERVER_HOST}:{SERVER_PORT}/ws/asr")
     print("=" * 60)
 
     uvicorn.run(

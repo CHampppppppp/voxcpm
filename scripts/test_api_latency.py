@@ -5,238 +5,301 @@ import time
 import os
 import sys
 import argparse
+import math
 
-# 默认配置
 DEFAULT_HOST = "localhost"
 DEFAULT_PORT = 8080
 DEFAULT_AUDIO_PATH = "/home/zju/VoxCPM/examples/hailan07_short.wav"
+DEFAULT_TEXT = "江苏现货市场里的费用分摊，主要有几种情况。一类是成本补偿，比如启停机组的费用，会按月向用户和售电公司按用电量比例分摊。然后就是市场不平衡费用，这部分涉及k值返还、结构性偏差这些，会根据电量或电价差来分摊。还有低负荷运行补偿，这类费用风电、光伏、核电按上网电量分摊，剩下部分再和其他发电或者用户按比例分。最后还有像超额收益回收这些，也是按照上网或用电量的比例分摊的。"
+DEFAULT_PROMPT_TEXT = "感谢您的耐心，我这就去核实一下，在江苏电力现货市场里，费用分摊主要涉及几类。"
+STEP_LENGTHS = [5, 15, 25]
+
+
+def percentile(values, pct):
+    if not values:
+        return 0.0
+    values = sorted(values)
+    if len(values) == 1:
+        return values[0]
+    k = (len(values) - 1) * pct
+    f = math.floor(k)
+    c = math.ceil(k)
+    if f == c:
+        return values[int(k)]
+    d = k - f
+    return values[f] * (1 - d) + values[c] * d
+
+
+def summarize_stats(label, values, unit):
+    if not values:
+        print(f"{label}: 无数据")
+        return
+    p50 = percentile(values, 0.50)
+    p95 = percentile(values, 0.95)
+    p99 = percentile(values, 0.99)
+    vmin = min(values)
+    vmax = max(values)
+    print(f"{label}: count={len(values)} min={vmin:.2f}{unit} p50={p50:.2f}{unit} p95={p95:.2f}{unit} p99={p99:.2f}{unit} max={vmax:.2f}{unit}")
+
+
+def build_text(base_text, length):
+    if length <= 0:
+        return ""
+    if len(base_text) >= length:
+        return base_text[:length]
+    repeat = (length // len(base_text)) + 1
+    return (base_text * repeat)[:length]
+
 
 async def test_health(uri):
-    """测试健康检查接口"""
-    print(f"\n[Testing Health] Connecting to {uri}...")
+    print(f"\n[Health] {uri}")
     try:
-        start_time = time.time()
+        start_time = time.perf_counter()
         async with websockets.connect(uri) as websocket:
-            connect_time = time.time()
-            print(f"  Connected in {(connect_time - start_time)*1000:.2f} ms")
-            
             resp = await websocket.recv()
-            end_time = time.time()
-            data = json.loads(resp)
-            
-            print(f"  Response: {data}")
-            print(f"  Total Latency: {(end_time - start_time)*1000:.2f} ms")
+        end_time = time.perf_counter()
+        data = json.loads(resp)
+        total_ms = (end_time - start_time) * 1000
+        print(f"Response: {data}")
+        print(f"Latency: {total_ms:.2f} ms")
     except Exception as e:
-        print(f"  Error: {e}")
+        print(f"Error: {e}")
+
 
 async def test_models(uri):
-    """测试模型信息接口"""
-    print(f"\n[Testing Models] Connecting to {uri}...")
+    print(f"\n[Models] {uri}")
     try:
-        start_time = time.time()
+        start_time = time.perf_counter()
         async with websockets.connect(uri) as websocket:
-            connect_time = time.time()
-            print(f"  Connected in {(connect_time - start_time)*1000:.2f} ms")
-            
             resp = await websocket.recv()
-            end_time = time.time()
-            data = json.loads(resp)
-            
-            print(f"  Response: {json.dumps(data, indent=2)}")
-            print(f"  Total Latency: {(end_time - start_time)*1000:.2f} ms")
+        end_time = time.perf_counter()
+        data = json.loads(resp)
+        total_ms = (end_time - start_time) * 1000
+        print(f"Response: {json.dumps(data, indent=2, ensure_ascii=False)}")
+        print(f"Latency: {total_ms:.2f} ms")
     except Exception as e:
-        print(f"  Error: {e}")
+        print(f"Error: {e}")
 
-async def test_vad(uri, audio_path):
-    """测试 VAD 接口"""
-    print(f"\n[Testing VAD] Connecting to {uri}...")
-    if not os.path.exists(audio_path):
-        print(f"  Error: Audio file not found at {audio_path}")
-        return
 
-    try:
-        with open(audio_path, "rb") as f:
-            audio_data = f.read()
-        print(f"  Audio size: {len(audio_data)} bytes")
-
-        start_time = time.time()
-        async with websockets.connect(uri) as websocket:
-            connect_time = time.time()
-            print(f"  Connected in {(connect_time - start_time)*1000:.2f} ms")
-            
-            # 发送音频
-            send_start = time.time()
-            await websocket.send(audio_data)
-            print(f"  Audio sent in {(time.time() - send_start)*1000:.2f} ms")
-            
-            # 接收结果
-            resp = await websocket.recv()
-            end_time = time.time()
-            data = json.loads(resp)
-            
-            print(f"  Response: {json.dumps(data, indent=2)}")
-            print(f"  Processing Latency (send+recv): {(end_time - send_start)*1000:.2f} ms")
-            print(f"  Total Latency: {(end_time - start_time)*1000:.2f} ms")
-    except Exception as e:
-        print(f"  Error: {e}")
-
-async def test_asr(uri, audio_path):
-    """测试 ASR 接口"""
-    print(f"\n[Testing ASR] Connecting to {uri}...")
-    if not os.path.exists(audio_path):
-        print(f"  Error: Audio file not found at {audio_path}")
-        return
-
-    try:
-        with open(audio_path, "rb") as f:
-            audio_data = f.read()
-        print(f"  Audio size: {len(audio_data)} bytes")
-
-        start_time = time.time()
-        async with websockets.connect(uri) as websocket:
-            connect_time = time.time()
-            print(f"  Connected in {(connect_time - start_time)*1000:.2f} ms")
-            
-            # 发送音频
-            send_start = time.time()
-            await websocket.send(audio_data)
-            print(f"  Audio sent in {(time.time() - send_start)*1000:.2f} ms")
-            
-            # 接收结果
-            resp = await websocket.recv()
-            end_time = time.time()
-            data = json.loads(resp)
-            
-            print(f"  Response: {json.dumps(data, indent=2)}")
-            print(f"  Processing Latency (send+recv): {(end_time - send_start)*1000:.2f} ms")
-            print(f"  Total Latency: {(end_time - start_time)*1000:.2f} ms")
-    except Exception as e:
-        print(f"  Error: {e}")
-
-async def test_generate(uri, text="用电量或扣费明细我这就为您调取～单一制用户的峰谷电价浮动比例，是根据容量来定的。", prompt_wav=None, prompt_text="感谢您的耐心，我这就去核实一下，在江苏电力现货市场里，费用分摊主要涉及几类。", stream=True):
-    """测试 TTS 生成接口"""
-    mode_str = "Streaming" if stream else "Non-streaming"
-    print(f"\n[Testing TTS Generate ({mode_str})] Connecting to {uri}...")
-    
+async def run_generate_once(
+    uri,
+    text,
+    prompt_wav,
+    prompt_text,
+    stream,
+    cfg_value,
+    inference_timesteps,
+    normalize,
+    denoise,
+    seed,
+):
     req_data = {
         "text": text,
-        "cfg_value": 2.0,
-        "inference_timesteps": 25,
-        "normalize": False,
-        "denoise": False,
-        "stream": stream
+        "cfg_value": cfg_value,
+        "inference_timesteps": inference_timesteps,
+        "normalize": normalize,
+        "denoise": denoise,
+        "stream": stream,
+        "seed": seed,
     }
     if prompt_wav:
         req_data["prompt_wav_path"] = prompt_wav
     if prompt_text:
         req_data["prompt_text"] = prompt_text
-        
-    print(f"  Request: {json.dumps(req_data, indent=2, ensure_ascii=False)}")
 
-    try:
-        start_time = time.time()
-        async with websockets.connect(uri) as websocket:
-            connect_time = time.time()
-            print(f"  Connected in {(connect_time - start_time)*1000:.2f} ms")
-            
-            # 发送请求
-            await websocket.send(json.dumps(req_data))
-            send_time = time.time()
-            
-            # 接收音频
-            first_chunk_time = None
-            total_audio_bytes = 0
-            
-            # 协议：先发音频 bytes，最后发 JSON 状态
-            while True:
-                msg = await websocket.recv()
-                if isinstance(msg, bytes):
-                    if first_chunk_time is None:
-                        first_chunk_time = time.time()
-                        # print(f"  First chunk received: {len(msg)} bytes")
-                    total_audio_bytes += len(msg)
-                else:
-                    # JSON 消息
-                    end_time = time.time()
-                    try:
-                        res_json = json.loads(msg)
-                        if res_json.get("status") == "error":
-                            print(f"  Error response: {res_json}")
-                            return
-                        # print(f"  Final Response: {res_json}")
-                    except:
-                        print(f"  Received non-JSON text: {msg}")
-                    break
-            
-            # 统计计算
-            first_latency_ms = (first_chunk_time - send_time) * 1000 if first_chunk_time else 0
-            total_latency_ms = (end_time - send_time) * 1000
-            total_latency_s = total_latency_ms / 1000.0
-            
-            # 计算音频时长 (44100Hz, 16bit, Mono)
-            # 16bit = 2 bytes per sample
-            sample_rate = 44100
-            bytes_per_sample = 2
-            audio_duration_s = total_audio_bytes / (sample_rate * bytes_per_sample)
-            
-            # 计算 RTF (Real Time Factor)
-            rtf = total_latency_s / audio_duration_s if audio_duration_s > 0 else 0
-            
-            print("-" * 40)
-            print(f"  Mode: {mode_str}")
-            print(f"  First Byte Latency (TTFB): {first_latency_ms:.2f} ms")
-            print(f"  Total Generation Time:     {total_latency_ms:.2f} ms")
-            print(f"  Audio Duration:            {audio_duration_s:.2f} s")
-            print(f"  Real Time Factor (RTF):    {rtf:.4f}")
-            print(f"  Audio Size:                {total_audio_bytes} bytes")
-            print("-" * 40)
-            
-    except Exception as e:
-        print(f"  Error: {e}")
+    start_time = time.perf_counter()
+    async with websockets.connect(uri) as websocket:
+        await websocket.send(json.dumps(req_data, ensure_ascii=False))
+        send_time = time.perf_counter()
+        first_chunk_time = None
+        total_audio_bytes = 0
+        sample_rate = 44100
+        while True:
+            msg = await websocket.recv()
+            if isinstance(msg, bytes):
+                if first_chunk_time is None:
+                    first_chunk_time = time.perf_counter()
+                total_audio_bytes += len(msg)
+            else:
+                end_time = time.perf_counter()
+                res_json = json.loads(msg)
+                if res_json.get("status") == "error":
+                    return None
+                if "sample_rate" in res_json:
+                    sample_rate = res_json["sample_rate"]
+                break
+
+    first_latency_ms = (first_chunk_time - send_time) * 1000 if first_chunk_time else 0
+    total_latency_ms = (end_time - send_time) * 1000
+    total_latency_s = total_latency_ms / 1000.0
+    bytes_per_sample = 2
+    audio_duration_s = total_audio_bytes / (sample_rate * bytes_per_sample) if sample_rate > 0 else 0
+    rtf = total_latency_s / audio_duration_s if audio_duration_s > 0 else 0
+
+    return {
+        "ttfb_ms": first_latency_ms,
+        "total_ms": total_latency_ms,
+        "audio_s": audio_duration_s,
+        "rtf": rtf,
+        "audio_bytes": total_audio_bytes,
+        "sample_rate": sample_rate,
+    }
+
+
+async def run_generate_batch(
+    label,
+    uri,
+    text,
+    prompt_wav,
+    prompt_text,
+    stream,
+    cfg_value,
+    inference_timesteps,
+    normalize,
+    denoise,
+    seed,
+    runs,
+    warmup,
+):
+    mode_str = "Streaming" if stream else "Non-streaming"
+    print(f"\n[{label} | {mode_str}]")
+    print(f"text_len={len(text)} runs={runs} warmup={warmup}")
+    if prompt_wav:
+        print(f"prompt_wav_path={prompt_wav}")
+    if prompt_text:
+        print(f"prompt_text_len={len(prompt_text)}")
+    print(f"cfg_value={cfg_value} inference_timesteps={inference_timesteps} normalize={normalize} denoise={denoise} seed={seed}")
+
+    for _ in range(warmup):
+        try:
+            await run_generate_once(
+                uri,
+                text,
+                prompt_wav,
+                prompt_text,
+                stream,
+                cfg_value,
+                inference_timesteps,
+                normalize,
+                denoise,
+                seed,
+            )
+        except Exception:
+            pass
+
+    results = []
+    for i in range(runs):
+        try:
+            result = await run_generate_once(
+                uri,
+                text,
+                prompt_wav,
+                prompt_text,
+                stream,
+                cfg_value,
+                inference_timesteps,
+                normalize,
+                denoise,
+                seed,
+            )
+            if result is not None:
+                results.append(result)
+        except Exception as e:
+            print(f"run {i + 1} error: {e}")
+
+    if not results:
+        print("No successful runs.")
+        return
+
+    ttfb = [r["ttfb_ms"] for r in results]
+    total = [r["total_ms"] for r in results]
+    rtf = [r["rtf"] for r in results]
+    audio_s = [r["audio_s"] for r in results]
+    audio_bytes = [r["audio_bytes"] for r in results]
+
+    summarize_stats("TTFB(ms)", ttfb, "ms")
+    summarize_stats("Total(ms)", total, "ms")
+    summarize_stats("RTF", rtf, "")
+    summarize_stats("Audio(s)", audio_s, "s")
+    summarize_stats("Audio(bytes)", audio_bytes, "B")
+
 
 async def main():
     parser = argparse.ArgumentParser(description="VoxCPM API Latency Test Script")
     parser.add_argument("--host", default=DEFAULT_HOST, help="API Server Host")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT, help="API Server Port")
-    parser.add_argument("--audio", default=DEFAULT_AUDIO_PATH, help="Path to audio file for VAD/ASR test")
-    parser.add_argument("--text", default="用电量或扣费明细我这就为您调取～单一制用户的峰谷电价浮动比例，是根据容量来定的。", help="Text for TTS test")
+    parser.add_argument("--text", default=DEFAULT_TEXT, help="Text for fixed-length test")
+    parser.add_argument("--prompt-wav", default=DEFAULT_AUDIO_PATH, help="Path to prompt wav for cloning")
+    parser.add_argument("--prompt-text", default=DEFAULT_PROMPT_TEXT, help="Prompt text for cloning")
+    parser.add_argument("--runs", type=int, default=100, help="Number of runs per test")
+    parser.add_argument("--warmup", type=int, default=3, help="Warmup runs before statistics")
+    parser.add_argument("--cfg-value", type=float, default=2.0, help="CFG value")
+    parser.add_argument("--inference-timesteps", type=int, default=25, help="Inference timesteps")
+    parser.add_argument("--normalize", action="store_true", help="Enable text normalization")
+    parser.add_argument("--denoise", action="store_true", help="Enable denoiser")
+    parser.add_argument("--seed", type=int, default=12345, help="Seed for reproducibility")
+    parser.add_argument("--step-lengths", default="5,20,50", help="Comma-separated lengths for step test")
     args = parser.parse_args()
 
     base_uri = f"ws://{args.host}:{args.port}"
     print(f"Target Server: {base_uri}")
-    print(f"Test Audio: {args.audio}")
 
-    # 1. Health
     await test_health(f"{base_uri}/ws/health")
-    
-    # 2. Models
     await test_models(f"{base_uri}/ws/models")
-    
-    # 3. VAD
-    await test_vad(f"{base_uri}/ws/vad", args.audio)
-    
-    # 4. ASR
-    await test_asr(f"{base_uri}/ws/asr", args.audio)
-    
-    # 5. TTS
-    # 纯文本 - Streaming
-    await test_generate(f"{base_uri}/ws/generate", text=args.text, prompt_text=None, stream=True)
 
-    # 纯文本 - Non-streaming
-    await test_generate(f"{base_uri}/ws/generate", text=args.text, prompt_text=None, stream=False)
-    
-    # 带参考音频（声音克隆）- Streaming
-    if os.path.exists(args.audio):
-        print("\n[Testing TTS with Cloning]...")
-        # 假设 audio 对应的文本未知，让后端自动识别
-        # 流式声音克隆
-        await test_generate(f"{base_uri}/ws/generate", text=args.text, prompt_wav=os.path.abspath(args.audio), stream=True)
-    # 带参考音频（声音克隆）- Non-streaming
-    if os.path.exists(args.audio):
-        print("\n[Testing TTS with Cloning]...")
-        # 假设 audio 对应的文本未知，让后端自动识别
-        # 流式声音克隆
-        await test_generate(f"{base_uri}/ws/generate", text=args.text, prompt_wav=os.path.abspath(args.audio), stream=False)
+    modes = [True, False]
+
+    prompt_wav = os.path.abspath(args.prompt_wav) if args.prompt_wav and os.path.exists(args.prompt_wav) else ""
+    prompt_text = args.prompt_text.strip() if args.prompt_text else ""
+
+    scenarios = [("No Cloning", "", "")]
+    if prompt_wav and prompt_text:
+        scenarios.append(("Cloning", prompt_wav, prompt_text))
+    else:
+        print("Cloning test skipped: prompt_wav and prompt_text are both required.")
+
+    for scenario_label, scenario_wav, scenario_text in scenarios:
+        for stream in modes:
+            await run_generate_batch(
+                f"Fixed Text Test | {scenario_label}",
+                f"{base_uri}/ws/generate",
+                args.text,
+                scenario_wav,
+                scenario_text,
+                stream,
+                args.cfg_value,
+                args.inference_timesteps,
+                args.normalize,
+                args.denoise,
+                args.seed,
+                args.runs,
+                args.warmup,
+            )
+
+    step_lengths = [int(x) for x in args.step_lengths.split(",") if x.strip().isdigit()]
+    if not step_lengths:
+        step_lengths = STEP_LENGTHS
+
+    for length in step_lengths:
+        step_text = build_text(args.text, length)
+        for scenario_label, scenario_wav, scenario_text in scenarios:
+            for stream in modes:
+                await run_generate_batch(
+                    f"Step Text Test ({length}) | {scenario_label}",
+                    f"{base_uri}/ws/generate",
+                    step_text,
+                    scenario_wav,
+                    scenario_text,
+                    stream,
+                    args.cfg_value,
+                    args.inference_timesteps,
+                    args.normalize,
+                    args.denoise,
+                    args.seed,
+                    args.runs,
+                    args.warmup,
+                )
+
 
 if __name__ == "__main__":
     try:

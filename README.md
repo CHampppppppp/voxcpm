@@ -176,7 +176,7 @@ python app.py
 
 ### 5. WebSocket API 服务
 
-VoxCPM 提供基于 WebSocket 的高性能异步 API 服务，支持并发请求与声音克隆，仅保留 TTS 能力。
+VoxCPM 提供了一个基于 WebSocket 的高性能异步 API 服务，支持并发请求、声音克隆和 ASR 接口。
 
 **启动服务**:
 ```bash
@@ -189,6 +189,7 @@ python api.py
     *   **特性**: 支持传入 `prompt_wav_path` 和 `prompt_text` 进行克隆，不再自动识别文本。
 *   `ws://host:port/ws/health`: WebSocket 健康检查。
 *   `ws://host:port/ws/models`: WebSocket 获取模型信息。
+*   `ws://host:port/ws/asr`: WebSocket 语音识别接口（SenseVoice-Small）。
 
 **HTTP 接口**:
 *   `http://host:port/health`: HTTP 健康检查。
@@ -206,6 +207,24 @@ python api.py
 }
 ```
 
+**ASR 使用示例（Python）**:
+```python
+import asyncio
+import websockets
+
+async def main():
+    uri = "ws://127.0.0.1:8080/ws/asr"
+    with open("/path/to/audio.wav", "rb") as f:
+        audio_bytes = f.read()
+
+    async with websockets.connect(uri) as ws:
+        await ws.send(audio_bytes)
+        resp = await ws.recv()
+        print(resp)  # {"status":"success","text":"识别结果"}
+
+asyncio.run(main())
+```
+
 ### 6. 微调 (Fine-tuning)
 
 VoxCPM1.5 支持全量微调 (SFT) 和 LoRA 微调，允许您基于自有数据训练个性化语音模型。详细说明请参考 [微调指南](docs/finetune.md)。
@@ -221,7 +240,7 @@ python scripts/train_voxcpm_finetune.py \
     --config_path conf/voxcpm_v1.5/voxcpm_finetune_lora.yaml
 ```
 
-## � 文档
+## 文档
 
 - **[使用指南](docs/usage_guide.md)** - 关于如何有效使用 VoxCPM 的详细指南，包括文本输入模式、声音克隆技巧和参数调优
 - **[微调指南](docs/finetune.md)** - 使用 SFT 和 LoRA 微调 VoxCPM 模型的完整指南
