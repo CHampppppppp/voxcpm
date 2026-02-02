@@ -29,14 +29,15 @@ import threading
 from contextlib import asynccontextmanager
 import json
 import io
+import traceback
 
 # 配置
 MODEL_PATH = os.environ.get("VOXCPM_MODEL_PATH", "/home/zju/VoxCPM/models/openbmb__VoxCPM1.5")
 SERVER_HOST = os.environ.get("SERVER_HOST", "0.0.0.0")
 SERVER_PORT = int(os.environ.get("SERVER_PORT", 8080))
 # 默认参考声音配置
-DEFAULT_PROMPT_WAV_PATH = os.environ.get("DEFAULT_PROMPT_WAV_PATH", "/home/zju/VoxCPM/examples/hailan02.wav")
-DEFAULT_PROMPT_TEXT = os.environ.get("DEFAULT_PROMPT_TEXT", "感谢您的耐心，我这就去核实一下。在江苏电力现货市场里，费用分摊主要涉及几类。")
+DEFAULT_PROMPT_WAV_PATH = os.environ.get("DEFAULT_PROMPT_WAV_PATH", "")
+DEFAULT_PROMPT_TEXT = os.environ.get("DEFAULT_PROMPT_TEXT", "")
 ASR_MODEL_ID = os.environ.get("ASR_MODEL_ID", "iic/SenseVoiceSmall")
 VAD_MODEL_ID = os.environ.get("VAD_MODEL_ID", "iic/speech_fsmn_vad_zh-cn-16k-common-pytorch")
 VOICE_PRESET_DIR = os.environ.get("VOICE_PRESET_DIR", "/home/zju/VoxCPM/examples")
@@ -48,7 +49,11 @@ def parse_json_map(raw_value: str) -> Dict[str, str]:
     if not raw_value:
         return {}
     try:
-        data = json.loads(raw_value)
+        if os.path.exists(raw_value):
+            with open(raw_value, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        else:
+            data = json.loads(raw_value)
         return data if isinstance(data, dict) else {}
     except Exception:
         return {}
@@ -109,7 +114,7 @@ def get_model() -> voxcpm.VoxCPM:
                 _tts_model = voxcpm.VoxCPM(
                     voxcpm_model_path=MODEL_PATH,
                     enable_denoiser=True,  # 启用降噪以提升克隆质量
-                    optimize=False,
+                    optimize=True,
                 )
                 print("Model loaded successfully!", file=sys.stderr)
     return _tts_model
@@ -185,9 +190,6 @@ def resolve_voice_preset(voice_id: Optional[str]):
     return prompt_wav_path or None, prompt_text, None
 
 
-
-
-
 def set_seed(seed: int):
     """设置随机种子以保证生成结果可复现"""
     import random
@@ -213,7 +215,10 @@ class WebSocketManager:
             self.active_connections.remove(websocket)
     
     async def send_json(self, websocket: WebSocket, data: Dict[str, Any]):
-        await websocket.send_json(data)
+        try:
+            await websocket.send_json(data)
+        except Exception:
+            pass
     
     async def send_bytes(self, websocket: WebSocket, data: bytes):
         await websocket.send_bytes(data)
@@ -222,109 +227,6 @@ class WebSocketManager:
         await self.send_json(websocket, {"status": "error", "message": message})
 
 ws_manager = WebSocketManager()
-
-
-# ============ HTTP Endpoints ============
-
-@app.get("/health")
-async def health_check():
-    """健康检查接口"""
-    is_loaded = _tts_model is not None
-    return {
-        "status": "ok", 
-        "message": "TTS service is running", 
-        "model_loaded": is_loaded
-    }
-
-
-@app.get("/models")
-async def get_models():
-    """获取模型信息"""
-    model = get_model()
-    return {
-        "model_path": MODEL_PATH,
-        "sample_rate": model.tts_model.sample_rate,
-        "device": str(model.tts_model.device),
-        "dtype": str(model.tts_model.config.dtype),
-    }
-
-
-@app.post("/generate")
-async def http_generate(request: TTSRequest):
-    """
-    HTTP 语音合成接口
-    返回 WAV 格式音频文件
-    """
-    # 验证必填参数
-    if not request.text.strip():
-        return {"status": "error", "message": "Text cannot be empty"}
-    
-    # 处理参考音频参数
-    prompt_wav_path = request.prompt_wav_path
-    prompt_text = request.prompt_text
-    voice_id = request.voice_id
-
-    if not prompt_wav_path and voice_id:
-        preset_wav, preset_text, preset_error = resolve_voice_preset(voice_id)
-        if preset_error:
-            return {"status": "error", "message": preset_error}
-        if preset_wav:
-            prompt_wav_path = preset_wav
-        if not prompt_text and preset_text:
-            prompt_text = preset_text
-
-    # 验证参考音频文件是否存在（如果提供了的话）
-    if prompt_wav_path:
-        if not os.path.exists(prompt_wav_path):
-            return {"status": "error", "message": f"Prompt audio file not found: {prompt_wav_path}"}
-
-    # 处理默认参考音频
-    if prompt_wav_path is None and prompt_text is None:
-        if DEFAULT_PROMPT_WAV_PATH and os.path.exists(DEFAULT_PROMPT_WAV_PATH):
-            prompt_wav_path = DEFAULT_PROMPT_WAV_PATH
-            prompt_text = DEFAULT_PROMPT_TEXT if DEFAULT_PROMPT_TEXT else None
-
-    # 设置随机种子
-    if request.seed is not None:
-        set_seed(request.seed)
-
-    # 生成语音
-    try:
-        model = get_model()
-        wav = model.generate(
-            text=request.text,
-            prompt_wav_path=prompt_wav_path,
-            prompt_text=prompt_text,
-            cfg_value=request.cfg_value,
-            inference_timesteps=request.inference_timesteps,
-            normalize=request.normalize,
-            denoise=request.denoise,
-        )
-
-        # 保存到临时文件
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-        audio_tensor = torch.from_numpy(wav).unsqueeze(0)
-        torchaudio.save(temp_file.name, audio_tensor, sample_rate=model.tts_model.sample_rate, format="wav")
-        temp_file.close()
-
-        # 返回文件流
-        from fastapi.responses import FileResponse
-        from starlette.background import BackgroundTask
-
-        def cleanup():
-            if os.path.exists(temp_file.name):
-                os.remove(temp_file.name)
-
-        return FileResponse(
-            temp_file.name, 
-            media_type="audio/wav", 
-            filename="output.wav",
-            background=BackgroundTask(cleanup)
-        )
-
-    except Exception as e:
-        return {"status": "error", "message": f"Generation failed: {str(e)}"}
-
 
 @app.websocket("/")
 async def websocket_root(websocket: WebSocket):
@@ -493,6 +395,11 @@ async def websocket_generate(websocket: WebSocket):
                 voice_id = data.get("voice_id")
                 stream = data.get("stream", True)
 
+                if isinstance(prompt_wav_path, str) and not prompt_wav_path.strip():
+                    prompt_wav_path = None
+                if isinstance(prompt_text, str) and not prompt_text.strip():
+                    prompt_text = None
+
                 if not prompt_wav_path and voice_id:
                     preset_wav, preset_text, preset_error = resolve_voice_preset(voice_id)
                     if preset_error:
@@ -511,10 +418,14 @@ async def websocket_generate(websocket: WebSocket):
 
                 # 处理默认参考音频（当用户没有提供任何参数时）
                 if prompt_wav_path is None and prompt_text is None:
-                    if DEFAULT_PROMPT_WAV_PATH and os.path.exists(DEFAULT_PROMPT_WAV_PATH):
+                    if DEFAULT_PROMPT_WAV_PATH and DEFAULT_PROMPT_TEXT and os.path.exists(DEFAULT_PROMPT_WAV_PATH):
                         prompt_wav_path = DEFAULT_PROMPT_WAV_PATH
-                        prompt_text = DEFAULT_PROMPT_TEXT if DEFAULT_PROMPT_TEXT else None
+                        prompt_text = DEFAULT_PROMPT_TEXT
                     # 如果默认值也没有配置，则 prompt_wav_path 和 prompt_text 保持为 None（不使用声音克隆）
+
+                if (prompt_wav_path is None) != (prompt_text is None):
+                    await ws_manager.send_error(websocket, "prompt_wav_path and prompt_text must both be provided or both be omitted")
+                    continue
 
                 # 设置随机种子
                 seed = data.get("seed")
@@ -581,11 +492,17 @@ async def websocket_generate(websocket: WebSocket):
                         "audio_size": len(audio_bytes),
                         "sample_rate": model.tts_model.sample_rate
                     })
-                
+            except WebSocketDisconnect:
+                break
             except json.JSONDecodeError:
                 await ws_manager.send_error(websocket, "Invalid JSON format")
             except Exception as e:
-                await ws_manager.send_error(websocket, f"Generation failed: {str(e)}")
+                error_message = str(e).strip()
+                if not error_message:
+                    error_message = f"{type(e).__name__}: {repr(e)}"
+                print(f"[ws/generate] Generation failed: {error_message}", file=sys.stderr)
+                traceback.print_exc()
+                await ws_manager.send_error(websocket, f"Generation failed: {error_message}")
                 
     except WebSocketDisconnect:
         ws_manager.disconnect(websocket)

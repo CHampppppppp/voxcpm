@@ -3,14 +3,13 @@ import websockets
 import json
 import time
 import os
-import sys
 import argparse
 import math
 
-DEFAULT_HOST = "127.0.0.1"
+DEFAULT_HOST = "localhost"
 DEFAULT_PORT = 8080
 DEFAULT_AUDIO_PATH = "/home/zju/VoxCPM/examples/hailan07.wav"
-DEFAULT_TEXT = "江苏现货市场里的费用分摊，主要有几种情况。一类是成本补偿，比如启停机组的费用，会按月向用户和售电公司按用电量比例分摊。然后就是市场不平衡费用，这部分涉及k值返还、结构性偏差这些，会根据电量或电价差来分摊。还有低负荷运行补偿，这类费用风电、光伏、核电按上网电量分摊，剩下部分再和其他发电或者用户按比例分。最后还有像超额收益回收这些，也是按照上网或用电量的比例分摊的。"
+DEFAULT_TEXT = "用电量或扣费明细我这就为您调取～单一制用户的峰谷电价浮动比例，是根据容量来定的。"
 DEFAULT_PROMPT_TEXT = "感谢您的耐心，我这就去核实一下，在江苏电力现货市场里，费用分摊主要涉及几类。"
 STEP_LENGTHS = [5, 15, 25]
 
@@ -228,6 +227,11 @@ async def run_generate_once(
                 end_time = time.perf_counter()
                 res_json = json.loads(msg)
                 if res_json.get("status") == "error":
+                    error_message = res_json.get("message", "")
+                    if error_message:
+                        print(f"Error: {error_message}")
+                    else:
+                        print("Error: Unknown server error")
                     return None
                 if "sample_rate" in res_json:
                     sample_rate = res_json["sample_rate"]
@@ -332,7 +336,7 @@ async def main():
     parser.add_argument("--text", default=DEFAULT_TEXT, help="Text for fixed-length test")
     parser.add_argument("--prompt-wav", default=DEFAULT_AUDIO_PATH, help="Path to prompt wav for cloning")
     parser.add_argument("--prompt-text", default=DEFAULT_PROMPT_TEXT, help="Prompt text for cloning")
-    parser.add_argument("--runs", type=int, default=5, help="Number of runs per test")
+    parser.add_argument("--runs", type=int, default=1, help="Number of runs per test")
     parser.add_argument("--warmup", type=int, default=1, help="Warmup runs before statistics")
     parser.add_argument("--cfg-value", type=float, default=2.0, help="CFG value")
     parser.add_argument("--inference-timesteps", type=int, default=25, help="Inference timesteps")

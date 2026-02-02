@@ -224,10 +224,24 @@ class VoxCPMModel(nn.Module):
                 import triton
             except:
                 raise ValueError("triton is not installed")
-            self.base_lm.forward_step = torch.compile(self.base_lm.forward_step, mode="reduce-overhead", fullgraph=True)
-            self.residual_lm.forward_step = torch.compile(self.residual_lm.forward_step, mode="reduce-overhead", fullgraph=True)
-            self.feat_encoder = torch.compile(self.feat_encoder, mode="reduce-overhead", fullgraph=True)
-            self.feat_decoder.estimator = torch.compile(self.feat_decoder.estimator, mode="reduce-overhead", fullgraph=True)
+            try:
+                import torch._inductor.config as inductor_config
+                if hasattr(inductor_config, "triton") and hasattr(inductor_config.triton, "cudagraphs"):
+                    inductor_config.triton.cudagraphs = False
+                if hasattr(inductor_config, "triton") and hasattr(inductor_config.triton, "cudagraph_trees"):
+                    inductor_config.triton.cudagraph_trees = False
+            except Exception:
+                pass
+
+            compile_mode = os.environ.get("VOXCPM_COMPILE_MODE", "safe")
+            if compile_mode == "aggressive":
+                self.base_lm.forward_step = torch.compile(self.base_lm.forward_step, mode="reduce-overhead", fullgraph=False)
+                self.residual_lm.forward_step = torch.compile(self.residual_lm.forward_step, mode="reduce-overhead", fullgraph=False)
+                self.feat_encoder = torch.compile(self.feat_encoder, mode="reduce-overhead", fullgraph=False)
+                self.feat_decoder.estimator = torch.compile(self.feat_decoder.estimator, mode="reduce-overhead", fullgraph=False)
+            else:
+                self.feat_encoder = torch.compile(self.feat_encoder, mode="reduce-overhead", fullgraph=False)
+                self.feat_decoder.estimator = torch.compile(self.feat_decoder.estimator, mode="reduce-overhead", fullgraph=False)
         except Exception as e:
             print(f"Warning: torch.compile disabled - {e}", file=sys.stderr)
         return self
