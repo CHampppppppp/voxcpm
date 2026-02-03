@@ -81,7 +81,7 @@ class VoxCPMDemo:
         text_input: str,
         prompt_wav_path_input: Optional[str] = None,
         prompt_text_input: Optional[str] = None,
-        cfg_value_input: float = 2.0,
+        cfg_value_input: float = 1.5,
         inference_timesteps_input: int = 20,
         do_normalize: bool = True,
         denoise: bool = False,
@@ -224,7 +224,7 @@ def create_demo_interface(demo: VoxCPMDemo):
                 cfg_value = gr.Slider(
                     minimum=1.0,
                     maximum=4.0,
-                    value=2.0,
+                    value=1.5,
                     step=0.1,
                     label="CFG Value (Guidance Scale)",
                     info="Higher values increase adherence to prompt, lower values allow more creativity"

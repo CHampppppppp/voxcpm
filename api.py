@@ -166,7 +166,7 @@ class TTSRequest(BaseModel):
     prompt_wav_path: Optional[str] = None
     prompt_text: Optional[str] = None
     voice_id: Optional[str] = None
-    cfg_value: float = 2.0
+    cfg_value: float = 1.5
     inference_timesteps: int = 20
     normalize: bool = False
     denoise: bool = False
@@ -360,7 +360,7 @@ async def websocket_generate(websocket: WebSocket):
         "prompt_wav_path": "/path/to/reference.wav",  // 可选
         "prompt_text": "参考音频对应的文本",           // 可选
         "voice_id": "voice_001",                       // 可选，音色ID自动映射参考音频
-        "cfg_value": 2.0,                              // 可选，默认 2.0 (推荐)
+        "cfg_value": 1.5,                              // 可选，默认 1.5 (推荐)
         "inference_timesteps": 20,                     // 可选，默认 20 (更高质量可设为 30-50)
         "normalize": false,                            // 可选，默认 false
         "denoise": false,                               // 可选，默认 false (设为 false 可保留呼吸声增加拟人感)
@@ -438,7 +438,7 @@ async def websocket_generate(websocket: WebSocket):
                         text=data["text"],
                         prompt_wav_path=prompt_wav_path,
                         prompt_text=prompt_text,
-                        cfg_value=data.get("cfg_value", 2.0),
+                        cfg_value=data.get("cfg_value", 1.5),
                         inference_timesteps=data.get("inference_timesteps", 20),
                         normalize=data.get("normalize", False),
                         denoise=data.get("denoise", False),
@@ -466,7 +466,7 @@ async def websocket_generate(websocket: WebSocket):
                         text=data["text"],
                         prompt_wav_path=prompt_wav_path,
                         prompt_text=prompt_text,
-                        cfg_value=data.get("cfg_value", 2.0),
+                        cfg_value=data.get("cfg_value", 1.5),
                         inference_timesteps=data.get("inference_timesteps", 20),
                         normalize=data.get("normalize", False),
                         denoise=data.get("denoise", False),
